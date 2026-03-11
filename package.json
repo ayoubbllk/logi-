@@ -14,32 +14,33 @@
     "db:seed": "prisma db seed"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "chart.js": "^4.4.6",
+    "jose": "^5.9.6",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "next": "^14.2.15",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@prisma/client": "^5.22.0",
-    "jose": "^5.9.6",
-    "bcryptjs": "^2.4.3",
-    "zod": "^3.23.8",
-    "chart.js": "^4.4.6",
     "react-chartjs-2": "^5.2.0",
-    "jspdf": "^2.5.2",
-    "jspdf-autotable": "^3.8.4"
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.17.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@types/bcryptjs": "^2.4.6",
-    "tailwindcss": "^3.4.14",
-    "postcss": "^8.4.47",
     "autoprefixer": "^10.4.20",
-    "prisma": "^5.22.0",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.15"
+    "eslint-config-next": "^14.2.15",
+    "postcss": "^8.4.47",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.3"
   },
   "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts"
   }
 }
