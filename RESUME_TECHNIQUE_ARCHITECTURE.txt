@@ -1,0 +1,66 @@
+RESUME TECHNIQUE & ARCHITECTURE — Application de Controle Qualite
+
+1) OBJECTIF
+role (ADMIN / CONTROLEUR)
+  - headers de securite
+  - rate limiting
+  - protection CSRF (double-submit cookie + header x-csrf-token)
+- Validation des payloads via Zod
+- Hash mot de passe via bcrypt
+
+5) MODELE DE DONNEES (NIVEAU HAUT)
+- User: comptes, role, statut actif
+- QualityControl: fiche principale (numero, statut, metadonnees documentaires)
+- SectionData: sections de fiche (donnees JSON)
+- ValidationLog: journal d’audit (actions, utilisateur, date)
+Application web interne pour creer, consulter, valider et archiver des fiches de controle qualite (contexte industriel ISO 9001), avec traçabilite et export PDF.
+
+2) STACK PRINCIPALE
+- Front/Back: Next.js 14 (App Router)
+- Langage: TypeScript
+- Base de donnees: MySQL 8
+- ORM: Prisma
+- Authentification: JWT en cookie HttpOnly
+- Validation: Zod
+- UI: React + TailwindCSS
+- PDF: jsPDF + jspdf-autotable
+
+3) ARCHITECTURE (EN COUCHES)
+- Presentation (pages + composants React)
+- API Layer (Route Handlers /api/*)
+- Service Layer (logique metier)
+- Data Access Layer (Prisma Client)
+- Persistence (MySQL)
+
+Principe: separation claire des responsabilites, logique metier centralisee dans les services, API mince.
+
+4) SECURITE
+- Middleware central:
+  - verification JWT
+  - controle d’acces par 
+6) FLUX METIER PRINCIPAL
+- Connexion utilisateur
+- Creation d’une fiche
+- Saisie des sections
+- Soumission
+- Validation/Rejet par admin
+- Historisation (audit trail)
+- Export PDF de la fiche
+
+7) ROUTES CLES
+- Auth: /api/auth/login, /api/auth/logout, /api/auth/me
+- Fiches: /api/fiches, /api/fiches/[id], /api/fiches/[id]/validate
+- Validation admin: /api/validation/stats, /api/validation/en-attente, /api/validation/historique
+- Stats dashboard: /api/stats
+
+8) POINTS TECHNIQUES IMPORTANTS
+- Pages protegees par middleware
+- Donnees critiques recuperees en no-store pour eviter les donnees stale
+- Gestion des erreurs metier standardisee (JSON success/error)
+- Export PDF declenche depuis le front, generation cote client via jsPDF-autotable
+
+9) BENEFICES DE L’ARCHITECTURE
+- Evolutive: ajout de logique metier sans casser l’UI
+- Maintainable: code organise par domaines
+- Securisee: controles centralises
+- Auditabile: journal de validation et traçabilite des decisions

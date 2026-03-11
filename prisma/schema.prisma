@@ -1,0 +1,182 @@
+// ============================================================================
+// PRISMA SCHEMA — Application de Gestion des Fiches de Contrôle Qualité
+// Stack : Next.js 14 · TypeScript · MySQL · Prisma
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+/// Rôles utilisateur
+enum Role {
+  ADMIN       // Gestion complète : utilisateurs, validation, modèles
+  CONTROLEUR  // Création et soumission de fiches de contrôle
+}
+
+/// Statut du contrôle qualité
+enum StatutControle {
+  EN_ATTENTE  // Fiche soumise, en attente de validation
+  VALIDE      // Fiche validée par un admin
+  REFUSE      // Fiche refusée par un admin
+  BROUILLON   // Fiche en cours de rédaction (non soumise)
+}
+
+/// Type d'action pour le journal de validation
+enum ActionType {
+  CREATION      // Création initiale de la fiche
+  MODIFICATION  // Modification des données
+  SOUMISSION    // Soumission pour validation
+  VALIDATION    // Validation par l'admin
+  REJET         // Rejet par l'admin
+}
+
+// ============================================================================
+// USER — Utilisateurs de l'application
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hash bcrypt (12 salt rounds)
+  nom       String
+  prenom    String
+  role      Role     @default(CONTROLEUR)
+  estActif  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Relations ──
+  /// Contrôles qualité créés par cet utilisateur
+  controlesCreees  QualityControl[] @relation("ControlesCreees")
+  /// Contrôles qualité validés/refusés par cet utilisateur (admin)
+  controlesValides QualityControl[] @relation("ControlesValides")
+  /// Entrées du journal de validation
+  validationLogs   ValidationLog[]
+
+  // ── Index ──
+  @@index([role, estActif])
+  @@index([email])
+
+  @@map("users")
+}
+
+// ============================================================================
+// QUALITY CONTROL — Fiche de contrôle qualité
+// ============================================================================
+
+model QualityControl {
+  id          String         @id @default(cuid())
+  numero      String         @unique          // Format : FC-2026-00001
+  titre       String                          // Ex: "Contrôle Bitume 50/70 - Lot 2026-042"
+  produit     String                          // Type de produit contrôlé
+  referenceDocument String     @default("PS-CQ-FR-03")
+  versionDocument   String     @default("07")
+  dateApplication   DateTime?
+  dateFiche         DateTime?
+  statut      StatutControle @default(BROUILLON)
+  commentaire String?        @db.Text         // Commentaire de validation/rejet
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  dateSoumission DateTime?                    // Date de soumission pour validation
+  dateDecision   DateTime?                    // Date de validation ou rejet
+
+  // ── Clés étrangères ──
+  createdById   String
+  validatedById String?
+
+  // ── Relations ──
+  /// Contrôleur ayant créé la fiche
+  createdBy     User           @relation("ControlesCreees", fields: [createdById], references: [id])
+  /// Admin ayant validé/refusé la fiche
+  validatedBy   User?          @relation("ControlesValides", fields: [validatedById], references: [id])
+  /// Sections de données (stockage JSON flexible)
+  sections      SectionData[]
+  /// Journal de validation (audit trail)
+  validationLogs ValidationLog[]
+
+  // ── Index pour performance ──
+  @@index([statut, createdById, createdAt])
+  @@index([statut, createdAt])             // Stats mensuelles (sans filtre user)
+  @@index([createdById])
+  @@index([validatedById])
+  @@index([produit, statut])               // Stats par produit avec statut
+  @@index([produit])
+  @@index([createdAt])
+
+  @@map("quality_controls")
+}
+
+// ============================================================================
+// SECTION DATA — Sections dynamiques (stockage JSON flexible)
+// ============================================================================
+//
+// Chaque section représente un bloc logique de la fiche de contrôle.
+// Le contenu est stocké en JSON pour permettre une structure flexible
+// sans migration de schéma à chaque ajout de champ métier.
+//
+// Exemples de sections :
+//   - "Identification de l'échantillon"
+//   - "Essais physiques"
+//   - "Résultats de conformité"
+//   - "Observations"
+//
+
+model SectionData {
+  id        String   @id @default(cuid())
+  titre     String                            // Titre de la section
+  ordre     Int                               // Ordre d'affichage (0, 1, 2…)
+  donnees   Json                              // Données flexibles de la section
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Clé étrangère ──
+  qualityControlId String
+
+  // ── Relations ──
+  qualityControl QualityControl @relation(fields: [qualityControlId], references: [id], onDelete: Cascade)
+
+  // ── Index ──
+  @@index([qualityControlId, ordre])
+  @@index([qualityControlId])
+
+  @@map("section_data")
+}
+
+// ============================================================================
+// VALIDATION LOG — Journal d'audit des actions
+// ============================================================================
+//
+// Traçabilité complète de chaque action effectuée sur une fiche.
+// Essentiel pour la conformité qualité (ISO 9001).
+//
+
+model ValidationLog {
+  id        String     @id @default(cuid())
+  action    ActionType                        // Type d'action effectuée
+  details   Json?                             // Détails supplémentaires (champs modifiés, etc.)
+  createdAt DateTime   @default(now())
+
+  // ── Clés étrangères ──
+  qualityControlId String
+  userId           String
+
+  // ── Relations ──
+  qualityControl QualityControl @relation(fields: [qualityControlId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id])
+
+  // ── Index ──
+  @@index([qualityControlId, createdAt])
+  @@index([userId])
+  @@index([action])
+
+  @@map("validation_logs")
+}

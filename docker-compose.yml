@@ -1,0 +1,104 @@
+# ============================================================================
+# DOCKER COMPOSE — Stack complète : Next.js + MySQL
+# Usage : docker compose up -d
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ────────────────────────────────────────────
+  # APPLICATION NEXT.JS
+  # ────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qc-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mysql://qcuser:${MYSQL_PASSWORD:-qc_secure_password}@db:3306/${MYSQL_DATABASE:-controle_qualite}
+      - JWT_SECRET=${JWT_SECRET}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - DATABASE_POOL_SIZE=10
+      - SLOW_QUERY_THRESHOLD=500
+      - LOG_LEVEL=INFO
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - qc-network
+    # Limite de ressources
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # ────────────────────────────────────────────
+  # BASE DE DONNÉES MYSQL
+  # ────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: qc-db
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secure_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-controle_qualite}
+      MYSQL_USER: qcuser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-qc_secure_password}
+      # Optimisations MySQL pour production
+      MYSQL_INNODB_BUFFER_POOL_SIZE: 256M
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "qcuser", "-p${MYSQL_PASSWORD:-qc_secure_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - qc-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  # ────────────────────────────────────────────
+  # ADMINER — Interface DB (optionnel, dev only)
+  # ────────────────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: qc-adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    depends_on:
+      - db
+    networks:
+      - qc-network
+    profiles:
+      - dev  # Activer avec : docker compose --profile dev up
+
+# ────────────────────────────────────────────
+# VOLUMES PERSISTANTS
+# ────────────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+
+# ────────────────────────────────────────────
+# RÉSEAU ISOLÉ
+# ────────────────────────────────────────────
+networks:
+  qc-network:
+    driver: bridge

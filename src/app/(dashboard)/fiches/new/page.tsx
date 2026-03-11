@@ -1,0 +1,18 @@
+// ============================================================================
+// PAGE — Nouveau contrôle qualité (/fiches/new)
+// Server Component wrapper pour le formulaire multi-step
+// ============================================================================
+
+import { NewFicheContent } from '@/components/fiches';
+
+export const metadata = {
+  title: 'Nouveau contrôle qualité — Gestion Qualité',
+};
+
+export default function NewFichePage() {
+  return (
+    <div className="py-6 px-4 md:px-6 lg:px-8">
+      <NewFicheContent />
+    </div>
+  );
+}
